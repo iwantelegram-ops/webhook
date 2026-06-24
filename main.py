@@ -1,13 +1,13 @@
 import os
 import asyncio
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 
-# Inisialisasi FastAPI agar Railway tetap mendeteksi port aktif
+# Inisialisasi FastAPI
 app = FastAPI()
 
-# Ambil token dan API dari Environment Variables Railway
+# Ambil token dan API dari Environment Variables
 API_ID = os.getenv("API_ID")
 API_HASH = os.getenv("API_HASH")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
@@ -20,13 +20,21 @@ bot = Client(
     bot_token=BOT_TOKEN
 )
 
-@app.on_event("startup")
-async def startup_event():
-    """Menjalankan bot secara otomatis saat FastAPI dimulai"""
-    # PERBAIKAN: Cukup panggil bot.start() saja, Pyrogram otomatis menghandle loop-nya
+async def run_bot_polling():
+    """Fungsi untuk menjalankan bot dalam mode polling terus-menerus"""
     if not bot.is_connected:
         await bot.start()
-    print("Bot Berhasil Dijalankan Menggunakan Mode Polling!")
+    print("Pyrogram Polling aktif dan mendengarkan pesan...")
+    # Menjaga agar Pyrogram tetap standby menerima pesan
+    while bot.is_connected:
+        await asyncio.sleep(1)
+
+@app.on_event("startup")
+async def startup_event():
+    """Memulai bot di background saat FastAPI menyala"""
+    # Menjalankan fungsi polling di background task agar tidak nge-freeze
+    asyncio.create_task(run_bot_polling())
+    print("Server FastAPI Berhasil Dijalankan!")
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -36,7 +44,7 @@ async def shutdown_event():
 
 @app.get("/")
 async def root():
-    return {"status": "Bot berjalan dengan aman via Polling!"}
+    return {"status": "Bot sedang aktif via Background Polling!"}
 
 # ==================== FUNGSI & HANDLER BOT ====================
 
