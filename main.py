@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from pyrogram import Client, filters
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 
-# Inisialisasi FastAPI agar Railway tidak menganggap aplikasi mati/eror port
+# Inisialisasi FastAPI agar Railway tetap mendeteksi port aktif
 app = FastAPI()
 
 # Ambil token dan API dari Environment Variables Railway
@@ -12,7 +12,7 @@ API_ID = os.getenv("API_ID")
 API_HASH = os.getenv("API_HASH")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-# Inisialisasi Pyrogram Client secara normal
+# Inisialisasi Pyrogram Client
 bot = Client(
     "my_bot",
     api_id=int(API_ID) if API_ID else None,
@@ -22,22 +22,21 @@ bot = Client(
 
 @app.on_event("startup")
 async def startup_event():
-    """Menjalankan bot secara background saat FastAPI dimulai"""
-    # Memulai bot Pyrogram
-    await bot.start()
-    
-    # Menjalankan loop internal Pyrogram agar standby menerima pesan otomatis
-    asyncio.create_task(bot.loop.create_task(asyncio.sleep(0))) 
-    print("Bot Webhook + Fitur Lengkap Berhasil Dijalankan!")
+    """Menjalankan bot secara otomatis saat FastAPI dimulai"""
+    # PERBAIKAN: Cukup panggil bot.start() saja, Pyrogram otomatis menghandle loop-nya
+    if not bot.is_connected:
+        await bot.start()
+    print("Bot Berhasil Dijalankan Menggunakan Mode Polling!")
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """Mematikan bot saat FastAPI mati"""
-    await bot.stop()
+    """Mematikan bot saat server FastAPI mati"""
+    if bot.is_connected:
+        await bot.stop()
 
 @app.get("/")
 async def root():
-    return {"status": "Bot sedang berjalan dengan aman!"}
+    return {"status": "Bot berjalan dengan aman via Polling!"}
 
 # ==================== FUNGSI & HANDLER BOT ====================
 
